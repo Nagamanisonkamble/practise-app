@@ -1,0 +1,82 @@
+import curses
+import random
+import time
+
+def run_game(stdscr):
+    # Hide the mouse cursor and set up non-blocking input
+    curses.curs_set(0)
+    stdscr.nodelay(True)
+    stdscr.timeout(100)
+
+    # Game constants
+    HEIGHT, WIDTH = 20, 15
+    ROAD_LEFT = 2
+    ROAD_RIGHT = WIDTH - 3
+
+    # Player initial setup
+    player_x = WIDTH // 2
+    player_y = HEIGHT - 2
+    
+    # Game variables
+    obstacles = []  # List holding [y, x] pairs for obstacle cars
+    score = 0
+    spawn_timer = 0
+
+    while True:
+        stdscr.clear()
+
+        # Draw the road boundaries
+        for y in range(HEIGHT):
+            stdscr.addch(y, ROAD_LEFT - 1, '|')
+            stdscr.addch(y, ROAD_RIGHT + 1, '|')
+
+        # Handle user keyboard input
+        key = stdscr.getch()
+        if key == curses.KEY_LEFT and player_x > ROAD_LEFT:
+            player_x -= 1
+        elif key == curses.KEY_RIGHT and player_x < ROAD_RIGHT:
+            player_x += 1
+        elif key == 27:  # ESC key to exit
+            break
+
+        # Spawn obstacles periodically
+        spawn_timer += 1
+        if spawn_timer % 5 == 0:
+            obstacle_x = random.randint(ROAD_LEFT, ROAD_RIGHT)
+            obstacles.append([0, obstacle_x])
+
+        # Move obstacles down and filter out the ones that left the screen
+        new_obstacles = []
+        for obs in obstacles:
+            obs[0] += 1  # Move down by 1 row
+            if obs[0] < HEIGHT:
+                new_obstacles.append(obs)
+            else:
+                score += 1  # Successfully avoided an obstacle
+        obstacles = new_obstacles
+
+        # Collision Check
+        for obs in obstacles:
+            if obs[0] == player_y and obs[1] == player_x:
+                stdscr.addstr(HEIGHT // 2, 2, " GAME OVER! ")
+                stdscr.addstr(HEIGHT // 2 + 1, 2, f" Final Score: {score} ")
+                stdscr.refresh()
+                time.sleep(2)
+                return
+
+        # Render player and current obstacles
+        stdscr.addch(player_y, player_x, '▲')
+        for obs in obstacles:
+            stdscr.addch(obs[0], obs[1], '█')
+
+        # Display the UI score
+        stdscr.addstr(0, WIDTH + 3, f"Score: {score}")
+        stdscr.addstr(2, WIDTH + 3, "Controls:")
+        stdscr.addstr(3, WIDTH + 3, "← / → Arrow Keys")
+        stdscr.addstr(4, WIDTH + 3, "ESC to Quit")
+
+        stdscr.refresh()
+
+# Standard wrapper initialization required for curses applications
+if __name__ == '__main__':
+    curses.wrapper(run_game)
